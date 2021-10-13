@@ -98,7 +98,7 @@
         [ (equal? #\newline (first charList)) (scanner (rest charList) tokenList (+ lineNumber 1))]
         [ (equal? #t (char-whitespace?  (first charList))) (scanner (rest charList) tokenList lineNumber)]
         [ (and  (equal? #\:  (first charList))) (equal? #\=  (first (rest charList)))   (scanner (rest(rest charList)) (append tokenList (list(list "assignment" lineNumber))) lineNumber)] 
-        [else (printf(string-append "Error on line "  (number->string lineNumber))) ] ;(scanner(rest charList) tokenList)
+        [else (printf( string-append "scanner error on line"  (number->string lineNumber) "\n")) ] ;(scanner(rest charList) tokenList)
 ))
 
 
@@ -120,9 +120,9 @@
 
 (define (parse filename)
   {cond
-     [(equal? "scanner error occured" (program (scan filename))) (print "scanner error occured")]
+     [(equal? "scanner error occured" (program (scan filename))) (printf "scanner error occured")]
      [(and (not (equal? "EOF" (first(program(scan filename))))) (equal? "parse error" (first(program (scan filename))))) (printf(string-append "Syntax error on line "  (number->string (first(first(rest (program (scan filename))))))))]
-     [else (print "parse completed successfully!")]
+     [else (printf "parse completed successfully!")]
      
      })
  
@@ -225,14 +225,14 @@
       [else (list "parse error" (rest(first tokenList)))] 
 ))
 
-(define (scan fileName) (scanner fileName '() 1) )
+(define (scan fileName) (scanner  (fileToCharString fileName) '() 1) )
 
-(define (file1) (fileToCharString "Input01.txt"))
-(define (file2) (fileToCharString "Input02.txt"))
-(define (file3) (fileToCharString "Input03.txt"))
-(define (file4) (fileToCharString "Input04.txt"))
-(define (file5) (fileToCharString "Input05.txt"))
-(define (file6) (fileToCharString "Input06.txt"))
+(define (file1)  "Input01.txt")
+(define (file2)  "Input02.txt")
+(define (file3)  "Input03.txt")
+(define (file4)  "Input04.txt")
+(define (file5)  "Input05.txt")
+(define (file6)  "Input06.txt")
 
 
 
