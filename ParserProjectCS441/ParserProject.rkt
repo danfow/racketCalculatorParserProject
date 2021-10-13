@@ -1,5 +1,6 @@
 #lang racket
 (require parser-tools/lex)
+(require racket/trace)
 
 
 
@@ -108,46 +109,68 @@
 
 ;start of parser logic
 
-(define (parse filename)
 
-  (program (scan filename))
+(define (match tokenList expected)
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? expected (first tokenList))  (rest tokenList ) ]
+      [else "parse error"]
+      })
+
+(define (parse filename)
+  {cond 
+     [(equal? "parse error" (program (scan filename))) (print "parse error occured")]
+     [(equal? "scanner error occured" (program (scan filename))) (print "scanner error occured")]
+     [else (print "parse completed successfully!")]
+     
+     })
  
-      )
+      
 
 
 (define (program tokenList)
-  {cond [ (equal? "ID" (first tokenList))  (stmt-list tokenList) (print tokenList)]
-      [ (equal? "read" (first tokenList))  (stmt-list tokenList) (print tokenList)]
-      [ (equal? "write" (first tokenList)) (stmt-list tokenList) (print tokenList)]
-      [ (equal? "EOF" (first tokenList)) "parse passed!"]
+  {cond
+      [ (equal? "parse error" tokenList) (print "parse error")]
+      [(or (empty? tokenList) (void? tokenList)) "scanner error occured"]
+      [ (equal? "ID" (first tokenList))  (match (stmt-list tokenList) "EOF") ]
+      [ (equal? "read" (first tokenList))  (match (stmt-list tokenList) "EOF") ]
+      [ (equal? "write" (first tokenList)) (match (stmt-list tokenList) "EOF")]
       [else "parse error"]
       })
 
 (define (stmt-list tokenList)
-  {cond [ (equal? "ID" (first tokenList)) (stmt tokenList) (stmt-list tokenList)]
-      [ (equal? "read" (first tokenList)) (stmt tokenList) (stmt-list tokenList)]
-      [ (equal? "write" (first tokenList)) (stmt tokenList) (stmt-list tokenList)]
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "ID" (first tokenList)) (stmt-list (stmt tokenList))]
+      [ (equal? "read" (first tokenList)) (stmt-list (stmt tokenList))]
+      [ (equal? "write" (first tokenList)) (stmt-list (stmt tokenList))]
       [ (equal? "EOF" (first tokenList)) tokenList]
       [else "parse error"]
       })
 
 (define (stmt tokenList)
-  {cond [ (and (equal? "ID" (first tokenList)) (equal? "assignment" (first(rest tokenList)))) (expr (rest(rest tokenList)))]
-      [ (and (equal? "read" (first tokenList)) (equal? "ID" (first(rest tokenList)))) (rest(rest tokenList))]
-      [ (equal? "write" (first tokenList)) (expr (rest tokenList))]
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (and (equal? "ID" (first tokenList)) (equal? "assignment" (first(rest tokenList))))  (expr ( match (match tokenList "ID") "assignment"))]
+      [ (and (equal? "read" (first tokenList)) (equal? "ID" (first(rest tokenList)))) (match (match tokenList "read") "ID")]
+      [ (equal? "write" (first tokenList)) (expr (match tokenList "write"))]
       [else "parse error"]
       })
 
 (define (term tokenList)
-  {cond [ (equal? "ID" (first tokenList)) (factor tokenList) (factor-tail tokenList) ]
-      [ (equal? "Num" (first tokenList)) (factor tokenList) (factor-tail tokenList)]
-      [ (equal? "lParen" (first tokenList)) (factor tokenList) (factor-tail tokenList)]
-      [else "parse error"]
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "ID" (first tokenList)) (factor-tail (factor tokenList)) ]     
+      [ (equal? "Num" (first tokenList)) (factor-tail (factor tokenList))]    
+      [ (equal? "lParen" (first tokenList)) (factor-tail (factor tokenList))]
+      [else " parse error"]
       })
 
 (define (term-tail tokenList)
-  {cond [ (equal? "addOp" (first tokenList)) (addOpp tokenList) (term tokenList) (term-tail tokenList) ]
-      [ (equal? "lParen" (first tokenList)) tokenList]
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "addOp" (first tokenList)) (term-tail (term (addOpp tokenList))) ]
+      [ (equal? "RParen" (first tokenList)) tokenList]
       [ (equal? "ID" (first tokenList)) tokenList]
       [ (equal? "read" (first tokenList)) tokenList]
       [ (equal? "write" (first tokenList)) tokenList]
@@ -156,48 +179,50 @@
       })
 
 (define (expr tokenList)
-  {cond [ (equal? "ID" (first tokenList)) (term tokenList) (term-tail tokenList) ]
-      [ (equal? "Num" (first tokenList)) (term tokenList) (term-tail tokenList)]
-      [ (equal? "lParen" (first tokenList)) (term tokenList) (term-tail tokenList)]
+  {cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "ID" (first tokenList)) (term-tail (term tokenList)) ]
+      [ (equal? "Num" (first tokenList)) (term-tail (term tokenList))]
+      [ (equal? "lParen" (first tokenList)) (term-tail (term tokenList))]
       [else "parse error"]
       })
 
-(define (factor tokenList)
-(cond
-      [ (equal? "ID" (first tokenList)) (rest tokenList) ]
-      [ (equal? "Num" (first tokenList)) (rest tokenList)]
-      [  (equal? "lParen" (first tokenList)) (expr (rest tokenList))]  ; needs to be modified to reflect grammar
-      [ (equal? "RParen" (first tokenList)) (rest tokenList)]
-      [else " parse error"] 
-))
-
 (define (factor-tail tokenList)
 (cond
-      [ (equal? "MultOp" (first tokenList)) (factor tokenList) (factor-tail tokenList) ]
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "MultOp" (first tokenList)) (factor-tail (factor (multOpp tokenList))) ]
       [ (equal? "addOp" (first tokenList)) tokenList]
-      [  (equal? "Rparen" (first tokenList)) tokenList ]  ; needs to be modified to reflect grammar
+      [  (equal? "RParen" (first tokenList)) tokenList ]
       [  (equal? "ID" (first tokenList)) tokenList ]
       [  (equal? "read" (first tokenList)) tokenList ]
       [ (equal? "write" (first tokenList)) tokenList ]
       [  (equal? "EOF" (first tokenList)) tokenList ]
-      [else " parse error"] 
+      [else "parse error"] 
 ))
+
+(define (factor tokenList)
+(cond
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "ID" (first tokenList)) (match tokenList "ID") ]
+      [ (equal? "Num" (first tokenList)) (match tokenList "Num")]
+      [  (equal? "lParen" (first tokenList)) (match (expr (match tokenList "lParen")) "RParen")]  
+      [else "parse error"] 
+))
+
 
 (define (addOpp tokenList)
 (cond
-      [ (equal? "addOp" (first tokenList)) (rest tokenList) ]
-      [else " parse error"] 
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "addOp" (first tokenList)) (match tokenList "addOp") ]
+      [else "parse error"] 
 ))
 
 (define (multOpp tokenList)
 (cond
-      [ (equal? "MultOp" (first tokenList)) (rest tokenList) ]
-      [else " parse error"] 
+      [ (equal? "parse error" tokenList) "parse error"]
+      [ (equal? "MultOp" (first tokenList)) (match tokenList "MultOp") ]
+      [else "parse error"] 
 ))
-
-
-
-
 
 (define (scan fileName) (scanner fileName '() 1) )
 
@@ -207,6 +232,23 @@
 (define (file4) (fileToCharString "Input04.txt"))
 (define (file5) (fileToCharString "Input05.txt"))
 (define (file6) (fileToCharString "Input06.txt"))
+
+
+
+
+#|(trace program)
+(trace stmt-list)
+(trace stmt)
+(trace term)
+(trace term-tail)
+(trace expr)
+(trace factor)
+(trace factor-tail)
+(trace addOpp)
+(trace multOpp)
+(trace scan)|#
+
+
 
 
 
